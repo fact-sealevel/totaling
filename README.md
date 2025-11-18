@@ -6,34 +6,41 @@ This is a very minimal prototype of a totaling module for summing sealevel rise 
 - user needs to pass a list of the full file paths for the desired files to `WorkflowTotaler`
 - attr parsing only in place for bamber and deconto so far (want to handle this differently anyway)
 
-## Example
+## Example running cli
+Using output from a 'experiment' run using docker compose that included a bamber and a deconto module. Can specify any number of `--item` inputs, include a path to a module-level output for each. 
 
-Imagine we ran a FACTS experiment that included bamber and deconto modules. We want to total the projections written for each of these modules into a singular estimate for global and local sea level change. (Note: local not impl yet)
-
-First, specify files to output paths from modules
+Clone repo (`initial_mvp` branch):
 ```shell
-file0 = "/path/to/data/output/ais_gslr.nc"
-file1 = "/path/to/data/output/output_ais_gslr.nc"
-file2 = "path/to/data/output/output_gis_gslr.nc"
-
-files_ls = [file0, file1, file2]
+git clone --single-branch --branch initial_mvp git@github.com:fact-sealevel/totaling.git
 ```
 
-Create a `WorkflowTotaler` obj w/ a phony name and the paths list
+Then, from the root directory, run totaling application:
 ```shell
-from totaling.core import WorkflowTotaler
+uv run totaling --item "/path/to/ais_gslr.nc" \
+--item "path/to/ais_gslr.nc" \
+--item "path/to/output_gis_gslr.nc" \
+--scale 'global' \
+--output-path "path/to/test_totaled_output.nc"
+```
 
-totaler = WorkflowTotaler(name = "wf name",
-                          paths_list = files_ls)
+## Features 
+```shell
+Usage: totaling [OPTIONS]
 
-#call get_projections() to read and combine module-level data cubes
-# see comments in core.py or notebook about scale and type_flag 
-totaler.get_projections(scale='global',
-                        type_flag = 'minimal')
+Options:
+  --name TEXT         Name of the workflow being totaled.  [default:
+                      my_workflow_name]
+  --item TEXT         Paths to component-level projection netcdf files to be
+                      totaled.  [required]
+  --scale TEXT        Scale at which to total projections: 'global' or
+                      'local'.  [default: global]
+  --output-path TEXT  Path to write totaled projections netcdf file.
+                      [required]
+  --help              Show this message and exit.
 
-# call total.projections() to sum across modules
-global_total_ds = totaler.total_projections(type_flag='minimal')
+```
 
-# write totaled output by passing desired output path
-totaler.write_totaled_projections(scale='global', outpath = my_output_path)
+See the above by running:
+```shell
+uv run --help
 ```
