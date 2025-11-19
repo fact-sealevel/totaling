@@ -1,88 +1,132 @@
 from typing import List
 import xarray as xr
-import pathlib
-
 
 class WorkflowTotaler:
-    """This is a class that handles totaling of sealevel projections from modules included in a workflow."""
+    """
+    Handles totaling of sealevel projections from modules included in a workflow.
+
+    Attributes
+    ----------
+    name : str
+        Name of the workflow.
+    paths_list : list of str
+        List of file paths to component-level projection datasets.
+    projections_ds : xr.Dataset, optional
+        Combined projections dataset, set after calling get_projections().
+    totaled_ds : xr.Dataset, optional
+        Totaled projections dataset, set after calling total_projections().
+    """
 
     def __init__(
         self,
         name: str,
         paths_list: List[str],
     ):
+        """
+        Initialize WorkflowTotaler.
+
+        Parameters
+        ----------
+        name : str
+            Name of the workflow.
+        paths_list : list of str
+            List of file paths to component-level projection datasets.
+        """
         self.name = name
         self.paths_list = paths_list
 
-    def get_projections(self, scale) -> xr.Dataset:
-        """Method to read in component-level projection datasets from nc files and combine
-        along a 'file' dim that is added to each.
-        - scale is 'global' or 'local'
-              - currently only 'global' is implemented.
+    def get_projections(self) -> xr.Dataset:
+        """
+        Reads in component-level projection datasets from NetCDF files and combines them
+        along a 'file' dimension that is added to each dataset.
+
+        Returns
+        -------
+        xr.Dataset
+            Combined projections dataset with a new 'file' dimension.
+
+        Raises
+        ------
+        AssertionError
+            If 'paths_list' attribute is missing.
         """
 
         def preprocess_fn(ds: xr.Dataset) -> xr.Dataset:
-            """minimal preprocess function to just add file dimension.
-            you can still total a file prepared this way but won't know what
-            modules were summed."""
+            """
+            Minimal preprocess function to add a 'file' dimension.
 
+            Parameters
+            ----------
+            ds : xr.Dataset
+                Input dataset.
+
+            Returns
+            -------
+            xr.Dataset
+                Dataset with added 'file' dimension and transposed dimensions.
+            """
             ds = ds.expand_dims("file")
             ds["file"] = ["abc"]
+            dims_ls = ['years','locations','file','samples']
+            ds = ds.transpose(*dims_ls)
             return ds
 
         assert hasattr(self, "paths_list"), (
             "WorkflowTotaler object must have 'paths_list' attribute."
         )
 
-        if scale.lower() not in ["global", "local"]:
-            raise ValueError(
-                f"Scale '{scale}' not recognized, must be 'global' or 'local'."
-            )
-        if scale.lower() == "local":
-            raise NotImplementedError("Local scale totaling not yet implemented.")
-
-        if scale.lower() == "global":
-            combined_ds = xr.open_mfdataset(
-                self.paths_list,
-                concat_dim="file",
-                combine="nested",
-                preprocess=preprocess_fn,
-            )
-        else:
-            raise ValueError(
-                f"Scale '{scale}' not recognized, must be 'global' or 'local'."
-            )
-
-        setattr(self, f"projections_ds_{scale}", combined_ds)
-
-    def total_projections(self, scale) -> xr.Dataset:
-        """function to total projections along 'file' dim added in get_projections().
-        returns xr.Dataset with totaled projections and sets a self.totaled_ds_{scale} attr"""
-
-        assert scale.lower() in ["global", "local"], (
-            f"Scale '{scale}' not recognized, must be 'global' or 'local'."
+        combined_ds = xr.open_mfdataset(
+            self.paths_list,
+            concat_dim="file",
+            combine="nested",
+            join='exact',
+            preprocess=preprocess_fn,
+            chunks="auto",
         )
 
+        setattr(self, "projections_ds", combined_ds)
+        return combined_ds
+
+    def total_projections(self) -> xr.Dataset:
+        """
+        Totals projections along the 'file' dimension added in get_projections().
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with an added 'totaled_sea_level_change' variable.
+
+        Raises
+        ------
+        AssertionError
+            If projections dataset has not been read in.
+        """
         # Make sure projections have been read in
-        assert hasattr(self, f"projections_ds_{scale}"), (
-            f"No projections dataset found for scale '{scale}'. Please run get_projections first."
+        assert hasattr(self, "projections_ds"), (
+            "No projections dataset found. Please run get_projections first."
         )
-        ds = getattr(self, f"projections_ds_{scale}")
+        ds = getattr(self, "projections_ds")
 
         ds["totaled_sea_level_change"] = ds["sea_level_change"].sum(dim="file")
-        setattr(self, f"totaled_ds_{scale}", ds)
+        setattr(self, "totaled_ds", ds)
         return ds
 
-    def write_totaled_projections(self, outpath: str, scale: str):
-        """Writes the totaled projections to a netCDF file.
-
-        Args:
-            scale (str): Scale of totaling, 'global' or 'local'.
-            outpath (str): Path to write the netCDF file to.
+    def write_totaled_projections(self, outpath: str):
         """
-        assert hasattr(self, f"totaled_ds_{scale}"), (
-            f"No totaled dataset found for scale '{scale}'. Please run get_projections first."
+        Writes the totaled projections to a NetCDF file.
+
+        Parameters
+        ----------
+        outpath : str
+            Path to write the NetCDF file to.
+
+        Raises
+        ------
+        AssertionError
+            If totaled dataset has not been created.
+        """
+        assert hasattr(self, "totaled_ds"), (
+            "No totaled dataset found. Please run get_projections first."
         )
-        totaled_ds = getattr(self, f"totaled_ds_{scale}")
-        outpath = pathlib.Path(outpath)
+        totaled_ds = getattr(self, "totaled_ds")
         totaled_ds.to_netcdf(outpath)

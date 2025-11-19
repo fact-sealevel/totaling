@@ -17,13 +17,6 @@ from totaling.core import WorkflowTotaler
     help="Paths to component-level projection netcdf files to be totaled.",
 )
 @click.option(
-    "--scale",
-    type=str,
-    default="global",
-    show_default=True,
-    help="Scale at which to total projections: 'global' or 'local'.",
-)
-@click.option(
     "--output-path",
     type=str,
     required=True,
@@ -31,7 +24,6 @@ from totaling.core import WorkflowTotaler
 )
 def main(name, 
          item, 
-         scale, 
          output_path):
     
     click.echo("Hello from FACTS totaling!")
@@ -46,10 +38,10 @@ def main(name,
     )
 
     # Read files and total projections
-    totaler.get_projections(scale=scale)
+    totaler.get_projections()
 
     # Calc sum
-    totaler.total_projections(scale=scale)
+    totaler.total_projections()
 
     # Write totaled projections to file
-    totaler.write_totaled_projections(scale=scale, outpath=output_path)
+    totaler.write_totaled_projections(outpath=output_path)
