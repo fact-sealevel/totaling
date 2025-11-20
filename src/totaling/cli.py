@@ -22,13 +22,10 @@ from totaling.core import WorkflowTotaler
     required=True,
     help="Path to write totaled projections netcdf file.",
 )
-def main(name, 
-         item, 
-         output_path):
-    
+def main(name, item, output_path):
     click.echo("Hello from FACTS totaling!")
 
-    #Make list of input paths
+    # Make list of input paths
     paths_list = list(item)
 
     # Create totaler obj
