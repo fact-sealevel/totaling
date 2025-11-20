@@ -1,6 +1,7 @@
 from typing import List
 import xarray as xr
-
+import numpy as np
+import click
 class WorkflowTotaler:
     """
     Handles totaling of sealevel projections from modules included in a workflow.
@@ -67,8 +68,16 @@ class WorkflowTotaler:
             """
             ds = ds.expand_dims("file")
             ds["file"] = ["abc"]
-            dims_ls = ['years','locations','file','samples']
-            ds = ds.transpose(*dims_ls)
+            ds = ds.expand_dims(['start_year', 'end_year','year_step'])
+            ds['start_year'] = [ds['years'].min().item()]
+            ds['end_year'] = [ds['years'].max().item()]
+            step = ds['years'].diff('years') 
+            #Make sure year steps are uniform across time dim
+            assert len(np.unique(step.data)) == 1, "Year steps are not uniform across time dimension."  
+            ds['year_step'] = [np.unique(step.data)[0]]
+
+            #dims_ls = ['years','locations','file','samples']
+            #ds = ds.transpose(*dims_ls)
             return ds
 
         assert hasattr(self, "paths_list"), (
@@ -79,11 +88,30 @@ class WorkflowTotaler:
             self.paths_list,
             concat_dim="file",
             combine="nested",
-            join='exact',
+            join = 'outer', # may want to change to join='exact'
             preprocess=preprocess_fn,
             chunks="auto",
         )
-
+        #Check dimensions of each dataset
+        if len(np.unique(combined_ds['start_year'])) > 1:
+            start_message = click.wrap_text(
+                f"Start years are not the same across all datasets. Check default values of --pyear-start in these modules. Received: {np.unique(combined_ds['start_year'].values)}",
+                width=70,
+            )
+            click.echo(start_message)
+        if len(np.unique(combined_ds['end_year'])) > 1:
+            end_message = click.wrap_text(
+                f"End years are not the same across all datasets. Check default values of --pyear-end in these modules. Received: {np.unique(combined_ds['end_year'].values)}",
+                width=70,
+            )
+            click.echo(end_message)
+        if len(np.unique(combined_ds['year_step'])) > 1:
+            step_message = click.wrap_text(
+                f"Year steps are not the same across all datasets. Check default values of --pyear-step in these modules. Received: {np.unique(combined_ds['year_step'].values)}",
+                width=70,
+            )
+            click.echo(step_message)
+        
         setattr(self, "projections_ds", combined_ds)
         return combined_ds
 
@@ -108,7 +136,7 @@ class WorkflowTotaler:
         ds = getattr(self, "projections_ds")
 
         ds["totaled_sea_level_change"] = ds["sea_level_change"].sum(dim="file")
-        setattr(self, "totaled_ds", ds)
+        setattr(self, "totaled_ds", ds['totaled_sea_level_change'])
         return ds
 
     def write_totaled_projections(self, outpath: str):
