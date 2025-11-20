@@ -95,19 +95,19 @@ class WorkflowTotaler:
         #Check dimensions of each dataset
         if len(np.unique(combined_ds['start_year'])) > 1:
             start_message = click.wrap_text(
-                f"Start years are not the same across all datasets. Check default values of --pyear-start in these modules. Received: {np.unique(combined_ds['start_year'].values)}",
+                f"⚠️ ⚠️ Start years are not the same across all datasets. Check default values of --pyear-start in these modules. Received: {np.unique(combined_ds['start_year'].values)}. ⚠️ ⚠️",
                 width=70,
             )
             click.echo(start_message)
         if len(np.unique(combined_ds['end_year'])) > 1:
             end_message = click.wrap_text(
-                f"End years are not the same across all datasets. Check default values of --pyear-end in these modules. Received: {np.unique(combined_ds['end_year'].values)}",
+                f"⚠️ ⚠️ End years are not the same across all datasets. Check default values of --pyear-end in these modules. Received: {np.unique(combined_ds['end_year'].values)}. ⚠️ ⚠️",
                 width=70,
             )
             click.echo(end_message)
         if len(np.unique(combined_ds['year_step'])) > 1:
             step_message = click.wrap_text(
-                f"Year steps are not the same across all datasets. Check default values of --pyear-step in these modules. Received: {np.unique(combined_ds['year_step'].values)}",
+                f"⚠️ ⚠️ Year steps are not the same across all datasets. Check default values of --pyear-step in these modules. Received: {np.unique(combined_ds['year_step'].values)}. ⚠️ ⚠️",
                 width=70,
             )
             click.echo(step_message)
